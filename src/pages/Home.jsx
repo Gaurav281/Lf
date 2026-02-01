@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import ProductCard from "../components/ProductCard";
 import BannerAd from "../components/BannerAd";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API = import.meta.env.VITE_API_URL;
 
 export default function Home() {
   const [products, setProducts] = useState([]);
