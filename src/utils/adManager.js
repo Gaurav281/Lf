@@ -1,11 +1,5 @@
-// frontend/src/utils/adManager.js
-
 let lastAdTime = 0;
-
-/**
- * Cooldown tuned for Indian traffic
- */
-const AD_COOLDOWN = 1200; // 1.2 seconds
+const AD_COOLDOWN = 1200; // safe for India
 
 function canOpen() {
   const now = Date.now();
@@ -15,28 +9,33 @@ function canOpen() {
 }
 
 /* ─────────────────────────────
-   INLINE / IFRAME BANNER ADS
+   IFRAME / BANNER ADS
    Used by:
    - ForcedAdModal
    - AdGateOverlay
    - VerifyGate
 ───────────────────────────── */
-export function openAd(containerId) {
+export function openAd(containerId, position = "top") {
   if (!containerId) return;
   if (!canOpen()) return;
 
-  const key = import.meta.env.VITE_ADSTERRA_GATE_BANNER_KEY;
-  const src = import.meta.env.VITE_ADSTERRA_GATE_BANNER_SRC;
+  const key =
+    position === "bottom"
+      ? import.meta.env.VITE_ADSTERRA_BANNER_BOTTOM_KEY
+      : import.meta.env.VITE_ADSTERRA_BANNER_TOP_KEY;
+
+  const src =
+    position === "bottom"
+      ? import.meta.env.VITE_ADSTERRA_BANNER_BOTTOM_SRC
+      : import.meta.env.VITE_ADSTERRA_BANNER_TOP_SRC;
 
   if (!key || !src) return;
 
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  // Clear previous ad (important)
   container.innerHTML = "";
 
-  // Adsterra expects global atOptions
   const optionsScript = document.createElement("script");
   optionsScript.type = "text/javascript";
   optionsScript.innerHTML = `
@@ -60,20 +59,19 @@ export function openAd(containerId) {
 }
 
 /* ─────────────────────────────
-   SMARTLINK / POP / REDIRECT
-   (new tab only)
+   DIRECT / SMARTLINK (redirect)
 ───────────────────────────── */
 export function openSmartLink() {
   if (!canOpen()) return;
 
-  const link = import.meta.env.VITE_ADSTERRA_SMARTLINK;
+  const link = import.meta.env.VITE_ADSTERRA_DIRECT_LINK;
   if (!link) return;
 
   window.open(link, "_blank", "noopener,noreferrer");
 }
 
 /* ─────────────────────────────
-   REWARDED / VIDEO (redirect)
+   REWARDED (redirect)
 ───────────────────────────── */
 export function openRewardedAd() {
   if (!canOpen()) return;

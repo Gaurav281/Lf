@@ -1,4 +1,4 @@
-import { openAd } from "../utils/adManager";
+import { openSmartLink } from "../utils/adManager";
 
 export default function AdButton({
   onClick,
@@ -9,10 +9,9 @@ export default function AdButton({
   const handleClick = (e) => {
     e.stopPropagation();
 
-    // Open ad first
-    openAd();
+    // Monetized redirect
+    openSmartLink();
 
-    // Call action ONLY if provided
     if (typeof onClick === "function") {
       onClick();
     }
@@ -24,13 +23,8 @@ export default function AdButton({
       onClick={handleClick}
       className={`group relative overflow-hidden ${className}`}
     >
-      {/* Background Shine Effect */}
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-      
-      {/* Content */}
-      <span className="relative">
-        {children}
-      </span>
+      <span className="relative">{children}</span>
     </button>
   );
 }

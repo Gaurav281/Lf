@@ -1,26 +1,16 @@
-// frontend/src/components/NativeBanner.jsx
 import { useEffect, useRef } from "react";
 
 export default function NativeBanner({ containerId }) {
   const loadedRef = useRef(false);
 
   useEffect(() => {
+    if (!containerId) return;
     if (loadedRef.current) return;
     loadedRef.current = true;
 
-    if (!containerId) return;
-
-    // 1️⃣ Set atOptions BEFORE script
-    window.atOptions = {
-      key: import.meta.env.VITE_ADSTERRA_NATIVE_KEY,
-      format: "native",
-      container: containerId,
-      params: {}
-    };
-
-    // 2️⃣ Inject script
     const script = document.createElement("script");
-    script.src = import.meta.env.VITE_ADSTERRA_NATIVE_SRC;
+    script.src =
+      "https://pl28624788.effectivegatecpm.com/8c531d7bb87effd987767434419c3ff5/invoke.js";
     script.async = true;
     script.setAttribute("data-cfasync", "false");
 
