@@ -3,18 +3,30 @@ import AdButton from "./AdButton";
 
 export default function ProductCard({ product }) {
   return (
-    <div className="relative group bg-gradient-to-br from-gray-900/50 to-gray-900/10 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 hover:border-purple-500/50 transition-all duration-500 hover:scale-[1.02] hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20">
-      
-      {/* Gradient Corner */}
-      <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-purple-600/10 to-blue-600/10 rounded-bl-full pointer-events-none" />
+    <div className="relative group bg-gradient-to-br from-gray-900/60 to-gray-900/10 backdrop-blur-sm rounded-2xl overflow-hidden border border-gray-800/60 hover:border-purple-500/50 transition-all duration-500 hover:scale-[1.02] hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20">
 
-      {/* Content */}
-      <div className="relative z-10">
-        <h2 className="text-xl font-bold mb-3 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-300 group-hover:bg-clip-text transition-all duration-300">
+      {/* ───── POSTER / TITLE BANNER ───── */}
+      <div className="relative h-32 bg-gradient-to-r from-purple-700/30 via-blue-700/30 to-indigo-700/30 flex items-center justify-center px-4">
+        
+        {/* Overlay pattern */}
+        <div className="absolute inset-0 bg-black/30" />
+
+        {/* Category badge */}
+        {product.category && (
+          <span className="absolute top-3 left-3 px-3 py-1 text-xs font-semibold rounded-full bg-black/70 border border-white/10 text-white backdrop-blur">
+            {product.category}
+          </span>
+        )}
+
+        {/* Poster title */}
+        <h2 className="relative z-10 text-center text-lg font-extrabold leading-tight bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
           {product.title}
         </h2>
+      </div>
 
-        <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+      {/* ───── BODY ───── */}
+      <div className="p-6 relative z-10">
+        <p className="text-gray-400 text-sm mb-6 leading-relaxed line-clamp-3">
           {product.description}
         </p>
 

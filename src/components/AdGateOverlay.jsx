@@ -1,84 +1,107 @@
 import { useEffect, useRef, useState } from "react";
+import { openAd } from "../utils/adManager";
 
 const TOTAL_TIME = 15; // seconds
 
-export default function AdGateOverlay({ onComplete, stepProgress , step}) {
+export default function AdGateOverlay({ onComplete, stepProgress, step }) {
   const [remaining, setRemaining] = useState(TOTAL_TIME);
 
-  const lastFrameRef = useRef(null);
   const elapsedRef = useRef(0);
+  const lastTimeRef = useRef(null);
   const rafRef = useRef(null);
+  const doneRef = useRef(false);
+  const barRef = useRef(null);
 
-  const topKey = import.meta.env.VITE_ADSTERRA_BANNER_TOP_KEY;
-  const topSrc = import.meta.env.VITE_ADSTERRA_BANNER_TOP_SRC;
-
-  const bottomKey = import.meta.env.VITE_ADSTERRA_BANNER_BOTTOM_KEY;
-  const bottomSrc = import.meta.env.VITE_ADSTERRA_BANNER_BOTTOM_SRC;
-
+  /* ───── INIT ───── */
   useEffect(() => {
+    // RESET EVERYTHING (important)
+    elapsedRef.current = 0;
+    lastTimeRef.current = null;
+    doneRef.current = false;
+
+    // Load ads ONCE (not inside RAF)
+    requestAnimationFrame(() => {
+      openAd("adgate-top");
+      openAd("adgate-bottom");
+    });
+
     const tick = (now) => {
-      if (document.visibilityState === "visible") {
-        if (lastFrameRef.current != null) {
-          const delta = (now - lastFrameRef.current) / 1000;
-          elapsedRef.current += delta;
-        }
+      if (doneRef.current) return;
 
-        const timeLeft = Math.max(
-          0,
-          Math.ceil(TOTAL_TIME - elapsedRef.current)
-        );
-        setRemaining(timeLeft);
-
-        if (timeLeft <= 0) {
-          onComplete();
-          return;
-        }
+      // Pause timer if tab is not visible
+      if (document.visibilityState !== "visible") {
+        lastTimeRef.current = now;
+        rafRef.current = requestAnimationFrame(tick);
+        return;
       }
 
-      lastFrameRef.current = now;
+      if (lastTimeRef.current === null) {
+        lastTimeRef.current = now;
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      const delta = (now - lastTimeRef.current) / 1000;
+      lastTimeRef.current = now;
+
+      elapsedRef.current += delta;
+
+      const elapsed = Math.min(elapsedRef.current, TOTAL_TIME);
+      const timeLeft = Math.max(0, TOTAL_TIME - elapsed);
+
+      // UI text
+      setRemaining(Math.ceil(timeLeft));
+
+      // PROGRESS BAR (imperative = correct here)
+      if (barRef.current) {
+        const percent = (elapsed / TOTAL_TIME) * 100;
+        barRef.current.style.width = `${percent}%`;
+      }
+
+      if (elapsed >= TOTAL_TIME) {
+        doneRef.current = true;
+        onComplete();
+        return;
+      }
+
       rafRef.current = requestAnimationFrame(tick);
     };
 
     rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, [onComplete]);
 
-  const skip = () => onComplete();
-
-  const timerProgress =
-    ((TOTAL_TIME - remaining) / TOTAL_TIME) * 100;
+  const skip = () => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onComplete();
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4">
-      {/* STEP COUNT */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50">
+
+      {/* STEP BADGE */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2">
         <div className="px-4 py-2 rounded-full bg-gray-900/80 border border-gray-700 text-sm font-semibold text-white">
           Step {step} / 4
         </div>
       </div>
+
       <div className="w-full max-w-md rounded-3xl bg-gray-900/80 border border-gray-700 shadow-2xl p-5">
 
-        {/* ───── TOP AD ───── */}
+        {/* TOP AD */}
         <div
+          id="adgate-top"
           onClick={skip}
-          className="h-24 rounded-xl bg-gray-800 mb-4 flex items-center justify-center text-gray-400 text-sm cursor-pointer overflow-hidden"
-          dangerouslySetInnerHTML={{
-            __html: `
-              <script>
-                atOptions = {
-                  'key': '${topKey}',
-                  'format': 'iframe',
-                  'height': 250,
-                  'width': 300,
-                  'params': {}
-                };
-              </script>
-              <script src="${topSrc}"></script>
-            `
-          }}
-        />
+          className="h-24 rounded-xl bg-gray-800 mb-4 cursor-pointer flex items-center justify-center text-gray-400 text-sm"
+        >
+          Advertisement
+        </div>
 
-        {/* ───── CENTER INFO ───── */}
+        {/* CENTER */}
         <div className="text-center mb-4">
           <p className="text-yellow-300 font-medium mb-2">
             Click any ad to skip the wait
@@ -88,15 +111,15 @@ export default function AdGateOverlay({ onComplete, stepProgress , step}) {
             {remaining}s
           </div>
 
-          {/* Timer progress */}
+          {/* PROGRESS BAR */}
           <div className="h-2 w-full bg-gray-700 rounded-full overflow-hidden mb-3">
             <div
-              className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all"
-              style={{ width: `${timerProgress}%` }}
+              ref={barRef}
+              className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-[width] duration-100 ease-linear"
+              style={{ width: "0%" }}
             />
           </div>
 
-          {/* Unlock progress */}
           <p className="text-sm text-gray-300">
             Unlock progress:{" "}
             <span className="font-bold text-white">
@@ -105,29 +128,18 @@ export default function AdGateOverlay({ onComplete, stepProgress , step}) {
           </p>
 
           <p className="mt-2 text-xs text-red-400">
-            ⚠️ Do not refresh the page or you will lose your progress
+            ⚠️ Do not refresh or leave this page
           </p>
         </div>
 
-        {/* ───── BOTTOM AD ───── */}
+        {/* BOTTOM AD */}
         <div
+          id="adgate-bottom"
           onClick={skip}
-          className="h-24 rounded-xl bg-gray-800 flex items-center justify-center text-gray-400 text-sm cursor-pointer overflow-hidden"
-          dangerouslySetInnerHTML={{
-            __html: `
-              <script>
-                atOptions = {
-                  'key': '${bottomKey}',
-                  'format': 'iframe',
-                  'height': 250,
-                  'width': 300,
-                  'params': {}
-                };
-              </script>
-              <script src="${bottomSrc}"></script>
-            `
-          }}
-        />
+          className="h-24 rounded-xl bg-gray-800 cursor-pointer flex items-center justify-center text-gray-400 text-sm"
+        >
+          Advertisement
+        </div>
       </div>
     </div>
   );

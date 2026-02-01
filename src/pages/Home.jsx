@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import ProductCard from "../components/ProductCard";
 import BannerAd from "../components/BannerAd";
 
-const API = import.meta.env.VITE_API_URL;
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export default function Home() {
   const [products, setProducts] = useState([]);
@@ -13,7 +13,7 @@ export default function Home() {
     fetch(`${API}/products`)
       .then((res) => res.json())
       .then((data) => {
-        setProducts(data);
+        setProducts(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -25,26 +25,29 @@ export default function Home() {
 
     const q = query.toLowerCase();
 
-    return products.filter((p) => {
-      return (
-        p.title?.toLowerCase().includes(q) ||
-        p.description?.toLowerCase().includes(q) ||
-        (Array.isArray(p.tags) &&
-          p.tags.join(" ").toLowerCase().includes(q))
-      );
-    });
+    return products.filter((p) => (
+      p.title?.toLowerCase().includes(q) ||
+      p.description?.toLowerCase().includes(q) ||
+      (Array.isArray(p.tags) &&
+        p.tags.join(" ").toLowerCase().includes(q))
+    ));
   }, [products, query]);
+
+  /* Scroll to top on search */
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [query]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-950 text-white px-4 pt-6 pb-24">
-      
+
       {/* Animated Background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-purple-600/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl" />
       </div>
 
-      {/* ───── HEADER ───── */}
+      {/* HEADER */}
       <div className="mb-8 text-center relative z-10">
         <h1 className="text-4xl font-bold tracking-tight mb-4">
           <span className="bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
@@ -60,7 +63,7 @@ export default function Home() {
           Reel bundles • Courses • Creator resources
         </p>
 
-        {/* ───── SEARCH BAR ───── */}
+        {/* SEARCH */}
         <div className="max-w-md mx-auto">
           <input
             type="text"
@@ -72,39 +75,43 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ───── LOADING ───── */}
+      {/* LOADING */}
       {loading && (
         <div className="text-center text-gray-400 mt-20 relative z-10">
           Loading premium products…
         </div>
       )}
 
-      {/* ───── NO RESULTS ───── */}
+      {/* NO RESULTS */}
       {!loading && filteredProducts.length === 0 && (
         <div className="text-center text-gray-500 mt-20 relative z-10">
           No products found for “{query}”
         </div>
       )}
 
-      {/* ───── PRODUCT GRID + ADS ───── */}
+      {/* GRID */}
       {!loading && filteredProducts.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto relative z-10">
-          {filteredProducts.map((product, index) => (
-            <div key={product.slug}>
-              <ProductCard product={product} />
 
-              {/* Banner Ad after every 3 products */}
-              {(index + 1) % 3 === 0 && (
-                <div className="md:col-span-2 lg:col-span-3">
-                  <BannerAd />
-                </div>
-              )}
-            </div>
+          {filteredProducts.map((product, index) => (
+            <ProductCard key={product.slug} product={product} />
           ))}
+
+          {/* Banner Ads (after every 3 items visually) */}
+          {filteredProducts.map((_, index) =>
+            (index + 1) % 3 === 0 ? (
+              <div
+                key={`banner-${index}`}
+                className="md:col-span-2 lg:col-span-3"
+              >
+                <BannerAd />
+              </div>
+            ) : null
+          )}
         </div>
       )}
 
-      {/* ───── FOOTER NOTE ───── */}
+      {/* FOOTER */}
       <p className="text-sm text-gray-500 text-center mt-16 px-4 max-w-md mx-auto relative z-10">
         Each product must be unlocked every time to ensure fair access and support creators.
       </p>

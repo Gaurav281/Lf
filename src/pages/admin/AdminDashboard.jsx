@@ -3,6 +3,15 @@ import { createProduct, deleteProduct } from "../../api/admin";
 
 const API = import.meta.env.VITE_API_URL;
 
+const CATEGORIES = [
+  "Growth",
+  "Entertainment",
+  "Education",
+  "Tools",
+  "Marketing",
+  "Resources"
+];
+
 export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,22 +19,31 @@ export default function AdminDashboard() {
   const [form, setForm] = useState({
     slug: "",
     title: "",
+    category: "Growth",
     description: "",
+    blog: "",
     telegramLink: ""
   });
 
+  const token = localStorage.getItem("admin_token");
+
   /* ───── PROTECT ROUTE ───── */
   useEffect(() => {
-    if (!localStorage.getItem("admin_token")) {
+    if (!token) {
       window.location.href = "/admin/login";
     }
-  }, []);
+  }, [token]);
 
-  /* ───── LOAD PRODUCTS ───── */
+  /* ───── LOAD PRODUCTS (LATEST FIRST) ───── */
   const loadProducts = async () => {
-    const res = await fetch(`${API}/products`);
+    setLoading(true);
+    const res = await fetch(`${API}/products?admin=true`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
     const data = await res.json();
-    setProducts(data);
+    setProducts(data.reverse()); // latest first (frontend safety)
     setLoading(false);
   };
 
@@ -33,6 +51,7 @@ export default function AdminDashboard() {
     loadProducts();
   }, []);
 
+  /* ───── FORM HANDLERS ───── */
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -40,17 +59,25 @@ export default function AdminDashboard() {
   const submit = async (e) => {
     e.preventDefault();
 
-    if (!form.slug || !form.title || !form.telegramLink) {
-      alert("Slug, title and Telegram link are required");
+    if (
+      !form.slug ||
+      !form.title ||
+      !form.category ||
+      !form.telegramLink ||
+      !form.blog
+    ) {
+      alert("Please fill all required fields");
       return;
     }
 
-    await createProduct(form);
+    await createProduct(form, token);
 
     setForm({
       slug: "",
       title: "",
+      category: "Growth",
       description: "",
+      blog: "",
       telegramLink: ""
     });
 
@@ -58,8 +85,8 @@ export default function AdminDashboard() {
   };
 
   const remove = async (slug) => {
-    if (!confirm("Delete this product?")) return;
-    await deleteProduct(slug);
+    if (!confirm("Delete this product permanently?")) return;
+    await deleteProduct(slug, token);
     loadProducts();
   };
 
@@ -71,7 +98,8 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-black text-white px-4 py-8">
 
-      <div className="max-w-5xl mx-auto flex justify-between items-center mb-8">
+      {/* HEADER */}
+      <div className="max-w-6xl mx-auto flex justify-between items-center mb-10">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <button
           onClick={logout}
@@ -81,16 +109,17 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* ───── ADD PRODUCT ───── */}
-      <div className="max-w-xl mx-auto bg-gray-900 p-6 rounded-2xl border border-gray-700 mb-10">
-        <h2 className="text-xl font-semibold mb-4">
+      {/* ADD PRODUCT */}
+      <div className="max-w-3xl mx-auto bg-gray-900 p-6 rounded-2xl border border-gray-700 mb-12">
+        <h2 className="text-xl font-semibold mb-6">
           Add New Product
         </h2>
 
         <form onSubmit={submit} className="space-y-4">
+
           <input
             name="slug"
-            placeholder="Slug (unique)"
+            placeholder="Slug (unique, URL-safe)"
             value={form.slug}
             onChange={handleChange}
             className="w-full p-3 rounded bg-gray-800 outline-none"
@@ -104,18 +133,39 @@ export default function AdminDashboard() {
             className="w-full p-3 rounded bg-gray-800 outline-none"
           />
 
+          {/* CATEGORY */}
+          <select
+            name="category"
+            value={form.category}
+            onChange={handleChange}
+            className="w-full p-3 rounded bg-gray-800 outline-none"
+          >
+            {CATEGORIES.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+
           <textarea
             name="description"
-            placeholder="Description"
+            placeholder="Short description (shown on card)"
             value={form.description}
             onChange={handleChange}
             rows="3"
             className="w-full p-3 rounded bg-gray-800 outline-none"
           />
 
+          <textarea
+            name="blog"
+            placeholder="Blog content (HTML allowed, shown on unlock page)"
+            value={form.blog}
+            onChange={handleChange}
+            rows="8"
+            className="w-full p-3 rounded bg-gray-800 outline-none"
+          />
+
           <input
             name="telegramLink"
-            placeholder="Telegram Link"
+            placeholder="Telegram Invite Link"
             value={form.telegramLink}
             onChange={handleChange}
             className="w-full p-3 rounded bg-gray-800 outline-none"
@@ -130,8 +180,8 @@ export default function AdminDashboard() {
         </form>
       </div>
 
-      {/* ───── PRODUCT LIST ───── */}
-      <div className="max-w-xl mx-auto">
+      {/* PRODUCT LIST */}
+      <div className="max-w-3xl mx-auto">
         <h2 className="text-xl font-semibold mb-4">
           Existing Products
         </h2>
@@ -149,7 +199,9 @@ export default function AdminDashboard() {
               >
                 <div>
                   <p className="font-semibold">{p.title}</p>
-                  <p className="text-sm text-gray-400">{p.slug}</p>
+                  <p className="text-xs text-gray-400">
+                    {p.slug} • {p.category}
+                  </p>
                 </div>
 
                 <button
