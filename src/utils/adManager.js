@@ -3,49 +3,65 @@
 let lastAdTime = 0;
 
 /**
- * AD MODE
- * "inline" → banners / native inside page
- * "blank"  → redirect smartlink in new tab
- *
- * Controlled from .env
+ * Cooldown tuned for Indian traffic
  */
-export const AD_MODE =
-  import.meta.env.VITE_AD_MODE || "inline";
+const AD_COOLDOWN = 1200; // 1.2 seconds
 
-/* ─────────────────────────────
-   GLOBAL THROTTLE (ANTI-SPAM)
-───────────────────────────── */
 function canOpen() {
   const now = Date.now();
-  if (now - lastAdTime < 1200) return false;
+  if (now - lastAdTime < AD_COOLDOWN) return false;
   lastAdTime = now;
   return true;
 }
 
 /* ─────────────────────────────
-   INLINE ADS (BANNER / NATIVE)
-   ❗ Smartlink must NEVER come here
+   INLINE / IFRAME BANNER ADS
+   Used by:
+   - ForcedAdModal
+   - AdGateOverlay
+   - VerifyGate
 ───────────────────────────── */
-export function loadInlineAd(containerId, html) {
+export function openAd(containerId) {
   if (!containerId) return;
+  if (!canOpen()) return;
 
-  const el = document.getElementById(containerId);
-  if (!el) return;
+  const key = import.meta.env.VITE_ADSTERRA_GATE_BANNER_KEY;
+  const src = import.meta.env.VITE_ADSTERRA_GATE_BANNER_SRC;
 
-  // clear previous ad
-  el.innerHTML = "";
+  if (!key || !src) return;
 
-  // inject ad html safely
-  const wrapper = document.createElement("div");
-  wrapper.innerHTML = html;
+  const container = document.getElementById(containerId);
+  if (!container) return;
 
-  el.appendChild(wrapper);
+  // Clear previous ad (important)
+  container.innerHTML = "";
+
+  // Adsterra expects global atOptions
+  const optionsScript = document.createElement("script");
+  optionsScript.type = "text/javascript";
+  optionsScript.innerHTML = `
+    atOptions = {
+      'key': '${key}',
+      'format': 'iframe',
+      'height': 250,
+      'width': 300,
+      'params': {}
+    };
+  `;
+
+  const invokeScript = document.createElement("script");
+  invokeScript.type = "text/javascript";
+  invokeScript.src = src;
+  invokeScript.async = true;
+  invokeScript.setAttribute("data-cfasync", "false");
+
+  container.appendChild(optionsScript);
+  container.appendChild(invokeScript);
 }
 
 /* ─────────────────────────────
-   SMARTLINK / POP / REDIRECT ADS
-   ✔ Only opens new tab
-   ✔ Fair-use compliant
+   SMARTLINK / POP / REDIRECT
+   (new tab only)
 ───────────────────────────── */
 export function openSmartLink() {
   if (!canOpen()) return;
@@ -57,8 +73,7 @@ export function openSmartLink() {
 }
 
 /* ─────────────────────────────
-   REWARDED / VIDEO ADS
-   ⚠ Adsterra rewarded = redirect based
+   REWARDED / VIDEO (redirect)
 ───────────────────────────── */
 export function openRewardedAd() {
   if (!canOpen()) return;
