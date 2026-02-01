@@ -24,13 +24,13 @@ export default function Home() {
     if (!query.trim()) return products;
 
     const q = query.toLowerCase();
-
-    return products.filter((p) => (
-      p.title?.toLowerCase().includes(q) ||
-      p.description?.toLowerCase().includes(q) ||
-      (Array.isArray(p.tags) &&
-        p.tags.join(" ").toLowerCase().includes(q))
-    ));
+    return products.filter(
+      (p) =>
+        p.title?.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q) ||
+        (Array.isArray(p.tags) &&
+          p.tags.join(" ").toLowerCase().includes(q))
+    );
   }, [products, query]);
 
   /* Scroll to top on search */
@@ -41,7 +41,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-950 text-white px-4 pt-6 pb-24">
 
-      {/* Animated Background */}
+      {/* BACKGROUND */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-purple-600/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl" />
@@ -49,7 +49,7 @@ export default function Home() {
 
       {/* HEADER */}
       <div className="mb-8 text-center relative z-10">
-        <h1 className="text-4xl font-bold tracking-tight mb-4">
+        <h1 className="text-4xl font-bold mb-4">
           <span className="bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
             Unlock Premium
           </span>
@@ -89,25 +89,24 @@ export default function Home() {
         </div>
       )}
 
-      {/* GRID */}
+      {/* GRID WITH INLINE NATIVE ADS */}
       {!loading && filteredProducts.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto relative z-10">
 
           {filteredProducts.map((product, index) => (
-            <ProductCard key={product.slug} product={product} />
+            <div key={product.slug} className="contents">
+              {/* PRODUCT */}
+              <ProductCard product={product} />
+
+              {/* NATIVE BANNER AFTER EVERY 3 PRODUCTS */}
+              {(index + 1) % 3 === 0 && (
+                <div className="md:col-span-2 lg:col-span-3">
+                  <BannerAd />
+                </div>
+              )}
+            </div>
           ))}
 
-          {/* Banner Ads (after every 3 items visually) */}
-          {filteredProducts.map((_, index) =>
-            (index + 1) % 3 === 0 ? (
-              <div
-                key={`banner-${index}`}
-                className="md:col-span-2 lg:col-span-3"
-              >
-                <BannerAd />
-              </div>
-            ) : null
-          )}
         </div>
       )}
 

@@ -1,14 +1,20 @@
+// frontend/src/utils/adManager.js
+
 let lastAdTime = 0;
 
 /**
- * GLOBAL AD MODE
- * "blank"  → opens new tab
- * "inline" → loads inside container
- * controlled from .env
+ * AD MODE
+ * "inline" → banners / native inside page
+ * "blank"  → redirect smartlink in new tab
+ *
+ * Controlled from .env
  */
 export const AD_MODE =
   import.meta.env.VITE_AD_MODE || "inline";
 
+/* ─────────────────────────────
+   GLOBAL THROTTLE (ANTI-SPAM)
+───────────────────────────── */
 function canOpen() {
   const now = Date.now();
   if (now - lastAdTime < 2000) return false;
@@ -16,68 +22,49 @@ function canOpen() {
   return true;
 }
 
-/* ───── NORMAL / SMARTLINK ADS ───── */
-export function openAd(containerId) {
-  if (!canOpen()) return;
+/* ─────────────────────────────
+   INLINE ADS (BANNER / NATIVE)
+   ❗ Smartlink must NEVER come here
+───────────────────────────── */
+export function loadInlineAd(containerId, html) {
+  if (!containerId) return;
 
-  const link = import.meta.env.VITE_ADSTERRA_DIRECT_LINK;
-  if (!link) return;
-
-  // OPEN IN NEW TAB
-  if (AD_MODE === "blank" || !containerId) {
-    window.open(link, "_blank", "noopener,noreferrer");
-    return;
-  }
-
-  // INLINE MODE
   const el = document.getElementById(containerId);
-  if (!el) {
-    // fallback safety
-    window.open(link, "_blank", "noopener,noreferrer");
-    return;
-  }
+  if (!el) return;
 
-  // force reload iframe
+  // clear previous ad
   el.innerHTML = "";
 
-  const iframe = document.createElement("iframe");
-  iframe.src = link;
-  iframe.className = "w-full h-full border-0";
-  iframe.loading = "lazy";
-  iframe.referrerPolicy = "no-referrer";
-  iframe.sandbox =
-    "allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation-by-user-activation";
+  // inject ad html safely
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = html;
 
-  el.appendChild(iframe);
+  el.appendChild(wrapper);
 }
 
-/* ───── REWARDED / VIDEO ADS ───── */
-export function openRewardedAd(containerId) {
+/* ─────────────────────────────
+   SMARTLINK / POP / REDIRECT ADS
+   ✔ Only opens new tab
+   ✔ Fair-use compliant
+───────────────────────────── */
+export function openSmartLink() {
+  if (!canOpen()) return;
+
+  const link = import.meta.env.VITE_ADSTERRA_SMARTLINK;
+  if (!link) return;
+
+  window.open(link, "_blank", "noopener,noreferrer");
+}
+
+/* ─────────────────────────────
+   REWARDED / VIDEO ADS
+   ⚠ Adsterra rewarded = redirect based
+───────────────────────────── */
+export function openRewardedAd() {
   if (!canOpen()) return;
 
   const link = import.meta.env.VITE_ADSTERRA_REWARDED_LINK;
   if (!link) return;
 
-  if (AD_MODE === "blank" || !containerId) {
-    window.open(link, "_blank", "noopener,noreferrer");
-    return;
-  }
-
-  const el = document.getElementById(containerId);
-  if (!el) {
-    window.open(link, "_blank", "noopener,noreferrer");
-    return;
-  }
-
-  el.innerHTML = "";
-
-  const iframe = document.createElement("iframe");
-  iframe.src = link;
-  iframe.className = "w-full h-full border-0";
-  iframe.loading = "lazy";
-  iframe.referrerPolicy = "no-referrer";
-  iframe.sandbox =
-    "allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation-by-user-activation";
-
-  el.appendChild(iframe);
+  window.open(link, "_blank", "noopener,noreferrer");
 }
