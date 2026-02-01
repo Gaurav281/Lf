@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 export default function BannerAd() {
-  const containerRef = useRef(null);
+  const ref = useRef(null);
   const loadedRef = useRef(false);
 
   const key = import.meta.env.VITE_ADSTERRA_HOME_BANNER_KEY;
@@ -10,13 +10,13 @@ export default function BannerAd() {
   useEffect(() => {
     if (!key || !src) return;
     if (loadedRef.current) return;
+    if (!ref.current) return;
 
     loadedRef.current = true;
+    ref.current.innerHTML = "";
 
-    // Create isolated atOptions
-    const optionsScript = document.createElement("script");
-    optionsScript.type = "text/javascript";
-    optionsScript.innerHTML = `
+    const opt = document.createElement("script");
+    opt.innerHTML = `
       atOptions = {
         'key': '${key}',
         'format': 'iframe',
@@ -26,24 +26,20 @@ export default function BannerAd() {
       };
     `;
 
-    const invokeScript = document.createElement("script");
-    invokeScript.type = "text/javascript";
-    invokeScript.src = src;
-    invokeScript.async = true;
+    const scr = document.createElement("script");
+    scr.src = src;
+    scr.async = true;
+    scr.setAttribute("data-cfasync", "false");
 
-    if (containerRef.current) {
-      containerRef.current.appendChild(optionsScript);
-      containerRef.current.appendChild(invokeScript);
-    }
+    ref.current.appendChild(opt);
+    ref.current.appendChild(scr);
   }, [key, src]);
-
-  if (!key || !src) return null;
 
   return (
     <div className="w-full flex justify-center my-8">
       <div
-        ref={containerRef}
-        className="w-[300px] h-[250px] bg-gray-900 rounded-xl border border-gray-800 flex items-center justify-center text-gray-500 text-sm overflow-hidden"
+        ref={ref}
+        className="w-[300px] h-[250px] bg-gray-900 rounded-xl border border-gray-800 flex items-center justify-center text-gray-500 text-sm"
       >
         Advertisement
       </div>

@@ -1,7 +1,8 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import AdButton from "../components/AdButton";
 import AdGateOverlay from "../components/AdGateOverlay";
+import VerifyGate from "../components/VerifyGate";
+import AdButton from "../components/AdButton";
 import { openRewardedAd } from "../utils/adManager";
 
 const API = import.meta.env.VITE_API_URL;
@@ -18,144 +19,68 @@ export default function Unlock() {
   const [progress, setProgress] = useState(0);
   const [step, setStep] = useState(1);
 
-  /* ───── STEP STATES ───── */
   const [showGate, setShowGate] = useState(true);
-
-  const [verifyStarted, setVerifyStarted] = useState(false);
-  const [verifyDone, setVerifyDone] = useState(false);
-  const [verifyTime, setVerifyTime] = useState(VERIFY_TIME);
-
+  const [verified, setVerified] = useState(false);
   const [canContinue, setCanContinue] = useState(false);
   const [rewardedShown, setRewardedShown] = useState(false);
 
-  const rafVerifyRef = useRef(null);
-  const verifyLastRef = useRef(null);
-  const verifyElapsedRef = useRef(0);
-  const verifyDoneRef = useRef(false);
-
-  /* ───── INIT ───── */
+  /* INIT */
   useEffect(() => {
-    const init = async () => {
-      const [unlockRes, productRes] = await Promise.all([
-        fetch(`${API}/unlock/start`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId, productId: slug })
-        }),
-        fetch(`${API}/products/${slug}`)
-      ]);
+    Promise.all([
+      fetch(`${API}/unlock/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, productId: slug })
+      }),
+      fetch(`${API}/products/${slug}`)
+    ])
+      .then(async ([u, p]) => {
+        const unlock = await u.json();
+        const prod = await p.json();
 
-      const unlockData = await unlockRes.json();
-      const productData = await productRes.json();
-
-      const currentProgress = unlockData.progress || 0;
-      const currentStep = Math.floor(currentProgress / 25) + 1;
-
-      setProgress(currentProgress);
-      setStep(currentStep);
-      setProduct(productData);
-      setLoading(false);
-      setShowGate(true);
-    };
-
-    init();
+        const prog = unlock.progress || 0;
+        setProgress(prog);
+        setStep(Math.floor(prog / 25) + 1);
+        setProduct(prod);
+        setLoading(false);
+      });
   }, [slug, sessionId]);
 
-  /* ───── VERIFY TIMER (RAF – SAFE) ───── */
-  const startVerify = () => {
-    cancelAnimationFrame(rafVerifyRef.current);
-
-    verifyElapsedRef.current = 0;
-    verifyLastRef.current = null;
-    verifyDoneRef.current = false;
-
-    setVerifyStarted(true);
-    setVerifyDone(false);
-    setVerifyTime(VERIFY_TIME);
-
-    const tick = (now) => {
-      if (verifyDoneRef.current) return;
-
-      if (document.visibilityState !== "visible") {
-        verifyLastRef.current = now;
-        rafVerifyRef.current = requestAnimationFrame(tick);
-        return;
-      }
-
-      if (!verifyLastRef.current) {
-        verifyLastRef.current = now;
-        rafVerifyRef.current = requestAnimationFrame(tick);
-        return;
-      }
-
-      const delta = (now - verifyLastRef.current) / 1000;
-      verifyLastRef.current = now;
-      verifyElapsedRef.current += delta;
-
-      const elapsed = Math.min(verifyElapsedRef.current, VERIFY_TIME);
-      const remaining = Math.max(0, VERIFY_TIME - elapsed);
-
-      setVerifyTime(Math.ceil(remaining));
-
-      if (elapsed >= VERIFY_TIME) {
-        verifyDoneRef.current = true;
-        setVerifyStarted(false);
-        setVerifyDone(true);
-        return;
-      }
-
-      rafVerifyRef.current = requestAnimationFrame(tick);
-    };
-
-    rafVerifyRef.current = requestAnimationFrame(tick);
-  };
-
-  /* ───── SCROLL TRACKING ───── */
+  /* SCROLL LOGIC */
   useEffect(() => {
-    if (!verifyDone) return;
+    if (!verified) return;
 
-    const checkScroll = () => {
-      const docHeight = document.documentElement.scrollHeight;
-      const winHeight = window.innerHeight;
+    const check = () => {
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - window.innerHeight;
 
-      // Short content → auto allow
-      if (docHeight <= winHeight + 10) {
+      if (max <= 50) {
         setCanContinue(true);
         return;
       }
 
-      const scrolled =
-        window.scrollY / (docHeight - winHeight);
+      const ratio = window.scrollY / max;
 
-      // Rewarded ad on odd steps at 50%
-      if (
-        scrolled >= 0.5 &&
-        step % 2 === 1 &&
-        !rewardedShown
-      ) {
+      if (ratio >= 0.5 && !rewardedShown && step % 2 === 1) {
         openRewardedAd();
         setRewardedShown(true);
       }
 
-      if (scrolled >= 0.9) {
-        setCanContinue(true);
-      }
+      if (ratio >= 0.9) setCanContinue(true);
     };
 
-    checkScroll();
-    window.addEventListener("scroll", checkScroll);
-    window.addEventListener("resize", checkScroll);
+    check();
+    window.addEventListener("scroll", check);
+    window.addEventListener("resize", check);
 
     return () => {
-      window.removeEventListener("scroll", checkScroll);
-      window.removeEventListener("resize", checkScroll);
+      window.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
     };
-  }, [verifyDone, step, rewardedShown]);
+  }, [verified, rewardedShown, step]);
 
-  /* ───── NEXT STEP ───── */
+  /* NEXT STEP */
   const nextStep = async () => {
-    cancelAnimationFrame(rafVerifyRef.current);
-
     const res = await fetch(`${API}/unlock/next`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -163,44 +88,28 @@ export default function Unlock() {
     });
 
     const data = await res.json();
-
     setProgress(data.progress);
-    setStep((s) => s + 1);
+    setStep(s => s + 1);
 
-    // Reset state
     setShowGate(true);
-    setVerifyStarted(false);
-    setVerifyDone(false);
-    setVerifyTime(VERIFY_TIME);
+    setVerified(false);
     setCanContinue(false);
     setRewardedShown(false);
-
-    verifyElapsedRef.current = 0;
-    verifyLastRef.current = null;
-    verifyDoneRef.current = false;
-
-    const rewarded = document.getElementById("rewarded-ad-container");
-    if (rewarded) rewarded.innerHTML = "";
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  /* ───── FINAL STATE ───── */
+  /* FINAL */
   if (!loading && progress >= 100) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-4">
-        <h1 className="text-3xl font-bold mb-6">
-          Access Unlocked 🎉
-        </h1>
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <button
           onClick={async () => {
-            const res = await fetch(
-              `${API}/products/${slug}/telegram`
-            );
+            const res = await fetch(`${API}/products/${slug}/telegram`);
             const data = await res.json();
             window.open(data.telegramLink, "_blank");
           }}
-          className="px-8 py-4 rounded-xl bg-green-600 font-bold text-lg"
+          className="px-8 py-4 bg-green-600 rounded-xl font-bold"
         >
           Join Telegram
         </button>
@@ -233,56 +142,34 @@ export default function Unlock() {
         />
       )}
 
-      {/* VERIFY */}
-      {!verifyDone && !verifyStarted && !showGate && (
+      {/* VERIFY GATE */}
+      {!showGate && !verified && (
         <div className="min-h-screen flex items-center justify-center">
-          <AdButton
-            onClick={startVerify}
-            className="px-10 py-4 rounded-xl bg-purple-600 font-bold text-lg"
-          >
-            Verify to Continue
-          </AdButton>
-        </div>
-      )}
-
-      {verifyStarted && (
-        <div className="min-h-screen flex items-center justify-center">
-          <p className="text-yellow-400 text-xl font-bold">
-            Verifying… {verifyTime}s
-          </p>
+          <VerifyGate onVerified={() => setVerified(true)} />
         </div>
       )}
 
       {/* BLOG */}
-      {verifyDone && (
+      {verified && (
         <div className="max-w-3xl mx-auto pt-24">
           <h1 className="text-3xl font-bold mb-4">
             {product.title}
           </h1>
-
-          <p className="text-gray-400 mb-8">
-            {product.description}
-          </p>
 
           <div
             className="prose prose-invert max-w-none"
             dangerouslySetInnerHTML={{ __html: product.blog }}
           />
 
-          <div id="rewarded-ad-container" className="my-12" />
-
           {!canContinue && (
-            <p className="text-center text-gray-400 mt-12">
-              Scroll to read full content to continue
+            <p className="text-center text-gray-400 mt-8">
+              Scroll to continue
             </p>
           )}
 
           {canContinue && (
-            <div className="flex justify-center mt-16">
-              <AdButton
-                onClick={nextStep}
-                className="px-10 py-4 rounded-xl bg-blue-600 font-bold text-lg"
-              >
+            <div className="flex justify-center mt-12">
+              <AdButton onClick={nextStep}>
                 Continue to Next Step
               </AdButton>
             </div>

@@ -1,40 +1,56 @@
-// frontend/src/components/VerifyGate.jsx
 import { useEffect, useRef, useState } from "react";
-import NativeBanner from "./NativeBanner";
+import { openAd } from "../utils/adManager";
 
-const VERIFY_TIME = 15; // seconds
+const VERIFY_TIME = 5;
 
 export default function VerifyGate({ onVerified }) {
   const [started, setStarted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(VERIFY_TIME);
 
   const rafRef = useRef(null);
-  const startRef = useRef(null);
+  const lastRef = useRef(null);
+  const elapsedRef = useRef(0);
   const doneRef = useRef(false);
 
   useEffect(() => {
     if (!started) return;
 
-    startRef.current = null;
     doneRef.current = false;
+    elapsedRef.current = 0;
+    lastRef.current = null;
     setTimeLeft(VERIFY_TIME);
+
+    requestAnimationFrame(() => {
+      openAd(
+        "verify-banner",
+        import.meta.env.VITE_ADSTERRA_VERIFY_BANNER_KEY,
+        import.meta.env.VITE_ADSTERRA_VERIFY_BANNER_SRC
+      );
+    });
 
     const tick = (now) => {
       if (doneRef.current) return;
 
       if (document.visibilityState !== "visible") {
+        lastRef.current = now;
         rafRef.current = requestAnimationFrame(tick);
         return;
       }
 
-      if (!startRef.current) startRef.current = now;
+      if (!lastRef.current) {
+        lastRef.current = now;
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
 
-      const elapsed = (now - startRef.current) / 1000;
-      const remaining = Math.max(0, VERIFY_TIME - elapsed);
+      const delta = (now - lastRef.current) / 1000;
+      lastRef.current = now;
+      elapsedRef.current += delta;
 
-      setTimeLeft(Math.ceil(remaining));
+      const left = Math.max(0, VERIFY_TIME - elapsedRef.current);
+      setTimeLeft(Math.ceil(left));
 
-      if (elapsed >= VERIFY_TIME) {
+      if (elapsedRef.current >= VERIFY_TIME) {
         doneRef.current = true;
         onVerified();
         return;
@@ -44,6 +60,7 @@ export default function VerifyGate({ onVerified }) {
     };
 
     rafRef.current = requestAnimationFrame(tick);
+
     return () => cancelAnimationFrame(rafRef.current);
   }, [started, onVerified]);
 
@@ -51,7 +68,7 @@ export default function VerifyGate({ onVerified }) {
     return (
       <button
         onClick={() => setStarted(true)}
-        className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 font-bold text-lg"
+        className="px-10 py-4 rounded-xl bg-purple-600 font-bold text-lg"
       >
         Verify to Continue
       </button>
@@ -61,25 +78,14 @@ export default function VerifyGate({ onVerified }) {
   return (
     <div className="w-full max-w-md mx-auto text-center space-y-4">
 
-      {/* TOP IFRAME BANNER */}
-      <div className="h-[250px] w-full rounded-xl overflow-hidden bg-gray-800">
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              atOptions = {
-                'key': '${import.meta.env.VITE_ADSTERRA_BANNER_TOP_KEY}',
-                'format': 'iframe',
-                'height': 250,
-                'width': 300,
-                'params': {}
-              };
-            `
-          }}
-        />
-        <script src={import.meta.env.VITE_ADSTERRA_BANNER_TOP_SRC} />
+      {/* VERIFY BANNER */}
+      <div
+        id="verify-banner"
+        className="h-[250px] rounded-xl bg-gray-800 flex items-center justify-center text-gray-400"
+      >
+        Advertisement
       </div>
 
-      {/* TIMER */}
       <div className="text-yellow-300 font-bold text-xl">
         Verifying… {timeLeft}s
       </div>
@@ -87,9 +93,6 @@ export default function VerifyGate({ onVerified }) {
       <p className="text-xs text-gray-400">
         Please stay on this page
       </p>
-
-      {/* BOTTOM NATIVE BANNER */}
-      <NativeBanner containerId="verify-native-bottom" />
     </div>
   );
 }

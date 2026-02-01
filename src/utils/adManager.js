@@ -1,5 +1,5 @@
 let lastAdTime = 0;
-const AD_COOLDOWN = 1200; // safe for India
+const AD_COOLDOWN = 1200; // India safe
 
 function canOpen() {
   const now = Date.now();
@@ -8,27 +8,12 @@ function canOpen() {
   return true;
 }
 
-/* ─────────────────────────────
-   IFRAME / BANNER ADS
-   Used by:
-   - ForcedAdModal
-   - AdGateOverlay
-   - VerifyGate
-───────────────────────────── */
-export function openAd(containerId, position = "top") {
+/* ───────── IFRAME BANNER ─────────
+   Used in Home, AdGateOverlay, VerifyGate
+────────────────────────────────── */
+export function openAd(containerId, key, src) {
   if (!containerId) return;
   if (!canOpen()) return;
-
-  const key =
-    position === "bottom"
-      ? import.meta.env.VITE_ADSTERRA_BANNER_BOTTOM_KEY
-      : import.meta.env.VITE_ADSTERRA_BANNER_TOP_KEY;
-
-  const src =
-    position === "bottom"
-      ? import.meta.env.VITE_ADSTERRA_BANNER_BOTTOM_SRC
-      : import.meta.env.VITE_ADSTERRA_BANNER_TOP_SRC;
-
   if (!key || !src) return;
 
   const container = document.getElementById(containerId);
@@ -36,9 +21,8 @@ export function openAd(containerId, position = "top") {
 
   container.innerHTML = "";
 
-  const optionsScript = document.createElement("script");
-  optionsScript.type = "text/javascript";
-  optionsScript.innerHTML = `
+  const options = document.createElement("script");
+  options.innerHTML = `
     atOptions = {
       'key': '${key}',
       'format': 'iframe',
@@ -48,36 +32,27 @@ export function openAd(containerId, position = "top") {
     };
   `;
 
-  const invokeScript = document.createElement("script");
-  invokeScript.type = "text/javascript";
-  invokeScript.src = src;
-  invokeScript.async = true;
-  invokeScript.setAttribute("data-cfasync", "false");
+  const invoke = document.createElement("script");
+  invoke.src = src;
+  invoke.async = true;
+  invoke.setAttribute("data-cfasync", "false");
 
-  container.appendChild(optionsScript);
-  container.appendChild(invokeScript);
+  container.appendChild(options);
+  container.appendChild(invoke);
 }
 
-/* ─────────────────────────────
-   DIRECT / SMARTLINK (redirect)
-───────────────────────────── */
+/* ───────── DIRECT / SMARTLINK ───────── */
 export function openSmartLink() {
   if (!canOpen()) return;
-
   const link = import.meta.env.VITE_ADSTERRA_DIRECT_LINK;
   if (!link) return;
-
   window.open(link, "_blank", "noopener,noreferrer");
 }
 
-/* ─────────────────────────────
-   REWARDED (redirect)
-───────────────────────────── */
+/* ───────── REWARDED (REDIRECT) ───────── */
 export function openRewardedAd() {
   if (!canOpen()) return;
-
   const link = import.meta.env.VITE_ADSTERRA_REWARDED_LINK;
   if (!link) return;
-
   window.open(link, "_blank", "noopener,noreferrer");
 }
