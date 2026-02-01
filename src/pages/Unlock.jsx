@@ -133,7 +133,7 @@ export default function Unlock() {
         step % 2 === 1 &&
         !rewardedShown
       ) {
-        openRewardedAd("rewarded-ad-container");
+        openRewardedAd();
         setRewardedShown(true);
       }
 

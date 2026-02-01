@@ -17,7 +17,7 @@ export const AD_MODE =
 ───────────────────────────── */
 function canOpen() {
   const now = Date.now();
-  if (now - lastAdTime < 2000) return false;
+  if (now - lastAdTime < 1200) return false;
   lastAdTime = now;
   return true;
 }
