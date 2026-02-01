@@ -1,6 +1,8 @@
+// frontend/src/components/ForcedAdModal.jsx
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Clock, X } from "lucide-react";
 import { openAd } from "../utils/adManager";
+import NativeBanner from "./NativeBanner";
 
 const CLOSE_DELAY = 4; // seconds
 
@@ -15,11 +17,10 @@ export default function ForcedAdModal() {
   const finishedRef = useRef(false);
 
   useEffect(() => {
-    // prevent multiple forced ads per session
     if (sessionStorage.getItem("forced_ad_done")) return;
     sessionStorage.setItem("forced_ad_done", "true");
 
-    // RESET ALL REFS
+    // RESET
     elapsedRef.current = 0;
     lastTimeRef.current = null;
     finishedRef.current = false;
@@ -29,7 +30,7 @@ export default function ForcedAdModal() {
     document.body.style.overflow = "hidden";
     setVisible(true);
 
-    // load ad once
+    // Load iframe banner ONCE
     requestAnimationFrame(() => {
       openAd("forced-ad-container");
     });
@@ -43,7 +44,7 @@ export default function ForcedAdModal() {
         return;
       }
 
-      if (lastTimeRef.current === null) {
+      if (!lastTimeRef.current) {
         lastTimeRef.current = now;
         rafRef.current = requestAnimationFrame(tick);
         return;
@@ -53,7 +54,6 @@ export default function ForcedAdModal() {
       lastTimeRef.current = now;
 
       elapsedRef.current += delta;
-
       const elapsed = Math.min(elapsedRef.current, CLOSE_DELAY);
       const left = Math.max(0, CLOSE_DELAY - elapsed);
 
@@ -87,8 +87,7 @@ export default function ForcedAdModal() {
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm flex items-center justify-center px-4">
-
-      <div className="w-full max-w-md rounded-3xl bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-800 shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md rounded-3xl bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-800 shadow-2xl overflow-hidden">
 
         {/* HEADER */}
         <div className="p-5 border-b border-gray-800 flex items-center gap-3">
@@ -103,8 +102,19 @@ export default function ForcedAdModal() {
           </div>
         </div>
 
-        {/* AD CONTAINER */}
-        <div className="p-3">
+        {/* AD SECTION */}
+        <div className="p-3 relative">
+          {/* ❌ CLOSE ICON (prevents accidental clicks) */}
+          {canClose && (
+            <button
+              onClick={close}
+              className="absolute top-2 right-2 z-20 bg-black/70 hover:bg-black rounded-full p-1"
+            >
+              <X className="w-4 h-4 text-white" />
+            </button>
+          )}
+
+          {/* IFRAME AD */}
           <div
             id="forced-ad-container"
             className="w-full h-[280px] bg-black rounded-xl overflow-hidden flex items-center justify-center"
@@ -115,7 +125,12 @@ export default function ForcedAdModal() {
           </div>
         </div>
 
-        {/* TIMER / CLOSE */}
+        {/* NATIVE BANNER */}
+        <div className="px-3 pb-3">
+          <NativeBanner containerId="forced-native-banner" />
+        </div>
+
+        {/* TIMER / CLOSE BUTTON */}
         <div className="p-5 border-t border-gray-800 text-center">
           {!canClose ? (
             <div className="flex items-center justify-center gap-3 text-yellow-300">
@@ -129,9 +144,7 @@ export default function ForcedAdModal() {
               onClick={close}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 font-bold active:scale-95 transition"
             >
-              <span className="flex items-center justify-center gap-2">
-                <X /> Close & Continue
-              </span>
+              Close & Continue
             </button>
           )}
         </div>

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { openAd } from "../utils/adManager";
+import NativeBanner from "./NativeBanner";
 
-const TOTAL_TIME = 15; // seconds
+const TOTAL_TIME = 15;
 
 export default function AdGateOverlay({ onComplete, stepProgress, step }) {
   const [remaining, setRemaining] = useState(TOTAL_TIME);
@@ -12,30 +13,26 @@ export default function AdGateOverlay({ onComplete, stepProgress, step }) {
   const doneRef = useRef(false);
   const barRef = useRef(null);
 
-  /* ───── INIT ───── */
   useEffect(() => {
-    // RESET EVERYTHING (important)
     elapsedRef.current = 0;
     lastTimeRef.current = null;
     doneRef.current = false;
 
-    // Load ads ONCE (not inside RAF)
+    // TOP banner (iframe banner)
     requestAnimationFrame(() => {
       openAd("adgate-top");
-      openAd("adgate-bottom");
     });
 
     const tick = (now) => {
       if (doneRef.current) return;
 
-      // Pause timer if tab is not visible
       if (document.visibilityState !== "visible") {
         lastTimeRef.current = now;
         rafRef.current = requestAnimationFrame(tick);
         return;
       }
 
-      if (lastTimeRef.current === null) {
+      if (!lastTimeRef.current) {
         lastTimeRef.current = now;
         rafRef.current = requestAnimationFrame(tick);
         return;
@@ -45,17 +42,13 @@ export default function AdGateOverlay({ onComplete, stepProgress, step }) {
       lastTimeRef.current = now;
 
       elapsedRef.current += delta;
-
       const elapsed = Math.min(elapsedRef.current, TOTAL_TIME);
-      const timeLeft = Math.max(0, TOTAL_TIME - elapsed);
+      const left = Math.max(0, TOTAL_TIME - elapsed);
 
-      // UI text
-      setRemaining(Math.ceil(timeLeft));
+      setRemaining(Math.ceil(left));
 
-      // PROGRESS BAR (imperative = correct here)
       if (barRef.current) {
-        const percent = (elapsed / TOTAL_TIME) * 100;
-        barRef.current.style.width = `${percent}%`;
+        barRef.current.style.width = `${(elapsed / TOTAL_TIME) * 100}%`;
       }
 
       if (elapsed >= TOTAL_TIME) {
@@ -68,10 +61,7 @@ export default function AdGateOverlay({ onComplete, stepProgress, step }) {
     };
 
     rafRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
+    return () => cancelAnimationFrame(rafRef.current);
   }, [onComplete]);
 
   const skip = () => {
@@ -82,8 +72,6 @@ export default function AdGateOverlay({ onComplete, stepProgress, step }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4">
-
-      {/* STEP BADGE */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2">
         <div className="px-4 py-2 rounded-full bg-gray-900/80 border border-gray-700 text-sm font-semibold text-white">
           Step {step} / 4
@@ -92,7 +80,7 @@ export default function AdGateOverlay({ onComplete, stepProgress, step }) {
 
       <div className="w-full max-w-md rounded-3xl bg-gray-900/80 border border-gray-700 shadow-2xl p-5">
 
-        {/* TOP AD */}
+        {/* TOP BANNER */}
         <div
           id="adgate-top"
           onClick={skip}
@@ -111,7 +99,6 @@ export default function AdGateOverlay({ onComplete, stepProgress, step }) {
             {remaining}s
           </div>
 
-          {/* PROGRESS BAR */}
           <div className="h-2 w-full bg-gray-700 rounded-full overflow-hidden mb-3">
             <div
               ref={barRef}
@@ -121,10 +108,7 @@ export default function AdGateOverlay({ onComplete, stepProgress, step }) {
           </div>
 
           <p className="text-sm text-gray-300">
-            Unlock progress:{" "}
-            <span className="font-bold text-white">
-              {stepProgress}%
-            </span>
+            Unlock progress: <span className="font-bold">{stepProgress}%</span>
           </p>
 
           <p className="mt-2 text-xs text-red-400">
@@ -132,13 +116,9 @@ export default function AdGateOverlay({ onComplete, stepProgress, step }) {
           </p>
         </div>
 
-        {/* BOTTOM AD */}
-        <div
-          id="adgate-bottom"
-          onClick={skip}
-          className="h-24 rounded-xl bg-gray-800 cursor-pointer flex items-center justify-center text-gray-400 text-sm"
-        >
-          Advertisement
+        {/* BOTTOM NATIVE BANNER */}
+        <div onClick={skip}>
+          <NativeBanner containerId="native-adgate-bottom" />
         </div>
       </div>
     </div>

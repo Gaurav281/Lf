@@ -1,8 +1,9 @@
 // frontend/src/components/VerifyGate.jsx
 import { useEffect, useRef, useState } from "react";
 import { openAd } from "../utils/adManager";
+import NativeBanner from "./NativeBanner";
 
-const VERIFY_TIME = 5; // seconds
+const VERIFY_TIME = 15; // seconds
 
 export default function VerifyGate({ onVerified }) {
   const [started, setStarted] = useState(false);
@@ -13,33 +14,30 @@ export default function VerifyGate({ onVerified }) {
   const elapsedRef = useRef(0);
   const doneRef = useRef(false);
 
-  /* ───── START VERIFY TIMER ───── */
   useEffect(() => {
     if (!started) return;
 
-    // RESET refs
+    // RESET
     elapsedRef.current = 0;
     lastTimeRef.current = null;
     doneRef.current = false;
     setTimeLeft(VERIFY_TIME);
 
-    // Load banner ads ONCE
+    // 🔥 ONLY ONE iframe banner
     requestAnimationFrame(() => {
       openAd("verify-ad-top");
-      openAd("verify-ad-bottom");
     });
 
     const tick = (now) => {
       if (doneRef.current) return;
 
-      // Pause timer if tab is inactive
       if (document.visibilityState !== "visible") {
         lastTimeRef.current = now;
         rafRef.current = requestAnimationFrame(tick);
         return;
       }
 
-      if (lastTimeRef.current === null) {
+      if (!lastTimeRef.current) {
         lastTimeRef.current = now;
         rafRef.current = requestAnimationFrame(tick);
         return;
@@ -49,7 +47,6 @@ export default function VerifyGate({ onVerified }) {
       lastTimeRef.current = now;
 
       elapsedRef.current += delta;
-
       const elapsed = Math.min(elapsedRef.current, VERIFY_TIME);
       const remaining = Math.max(0, VERIFY_TIME - elapsed);
 
@@ -65,10 +62,7 @@ export default function VerifyGate({ onVerified }) {
     };
 
     rafRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
+    return () => cancelAnimationFrame(rafRef.current);
   }, [started, onVerified]);
 
   /* ───── BEFORE VERIFY ───── */
@@ -87,10 +81,10 @@ export default function VerifyGate({ onVerified }) {
   return (
     <div className="w-full max-w-md mx-auto text-center space-y-4">
 
-      {/* TOP BANNER */}
+      {/* TOP BANNER (iframe) */}
       <div
         id="verify-ad-top"
-        className="h-20 rounded-xl bg-gray-800 flex items-center justify-center text-gray-400 text-sm cursor-pointer"
+        className="h-20 rounded-xl bg-gray-800 flex items-center justify-center text-gray-400 text-sm"
       >
         Advertisement
       </div>
@@ -104,13 +98,8 @@ export default function VerifyGate({ onVerified }) {
         Please wait while we verify your access
       </p>
 
-      {/* BOTTOM BANNER */}
-      <div
-        id="verify-ad-bottom"
-        className="h-20 rounded-xl bg-gray-800 flex items-center justify-center text-gray-400 text-sm cursor-pointer"
-      >
-        Advertisement
-      </div>
+      {/* BOTTOM NATIVE BANNER */}
+      <NativeBanner containerId="verify-native-bottom" />
     </div>
   );
 }
