@@ -1,6 +1,5 @@
 // frontend/src/components/VerifyGate.jsx
 import { useEffect, useRef, useState } from "react";
-import { openAd } from "../utils/adManager";
 import NativeBanner from "./NativeBanner";
 
 const VERIFY_TIME = 15; // seconds
@@ -10,44 +9,27 @@ export default function VerifyGate({ onVerified }) {
   const [timeLeft, setTimeLeft] = useState(VERIFY_TIME);
 
   const rafRef = useRef(null);
-  const lastTimeRef = useRef(null);
-  const elapsedRef = useRef(0);
+  const startRef = useRef(null);
   const doneRef = useRef(false);
 
   useEffect(() => {
     if (!started) return;
 
-    // RESET
-    elapsedRef.current = 0;
-    lastTimeRef.current = null;
+    startRef.current = null;
     doneRef.current = false;
     setTimeLeft(VERIFY_TIME);
-
-    // 🔥 ONLY ONE iframe banner
-    requestAnimationFrame(() => {
-      openAd("verify-ad-top");
-    });
 
     const tick = (now) => {
       if (doneRef.current) return;
 
       if (document.visibilityState !== "visible") {
-        lastTimeRef.current = now;
         rafRef.current = requestAnimationFrame(tick);
         return;
       }
 
-      if (!lastTimeRef.current) {
-        lastTimeRef.current = now;
-        rafRef.current = requestAnimationFrame(tick);
-        return;
-      }
+      if (!startRef.current) startRef.current = now;
 
-      const delta = (now - lastTimeRef.current) / 1000;
-      lastTimeRef.current = now;
-
-      elapsedRef.current += delta;
-      const elapsed = Math.min(elapsedRef.current, VERIFY_TIME);
+      const elapsed = (now - startRef.current) / 1000;
       const remaining = Math.max(0, VERIFY_TIME - elapsed);
 
       setTimeLeft(Math.ceil(remaining));
@@ -65,7 +47,6 @@ export default function VerifyGate({ onVerified }) {
     return () => cancelAnimationFrame(rafRef.current);
   }, [started, onVerified]);
 
-  /* ───── BEFORE VERIFY ───── */
   if (!started) {
     return (
       <button
@@ -77,25 +58,34 @@ export default function VerifyGate({ onVerified }) {
     );
   }
 
-  /* ───── VERIFYING UI ───── */
   return (
     <div className="w-full max-w-md mx-auto text-center space-y-4">
 
-      {/* TOP BANNER (iframe) */}
-      <div
-        id="verify-ad-top"
-        className="h-20 rounded-xl bg-gray-800 flex items-center justify-center text-gray-400 text-sm"
-      >
-        Advertisement
+      {/* TOP IFRAME BANNER */}
+      <div className="h-[250px] w-full rounded-xl overflow-hidden bg-gray-800">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              atOptions = {
+                'key': '${import.meta.env.VITE_ADSTERRA_BANNER_TOP_KEY}',
+                'format': 'iframe',
+                'height': 250,
+                'width': 300,
+                'params': {}
+              };
+            `
+          }}
+        />
+        <script src={import.meta.env.VITE_ADSTERRA_BANNER_TOP_SRC} />
       </div>
 
       {/* TIMER */}
-      <div className="text-yellow-300 font-semibold text-lg">
+      <div className="text-yellow-300 font-bold text-xl">
         Verifying… {timeLeft}s
       </div>
 
       <p className="text-xs text-gray-400">
-        Please wait while we verify your access
+        Please stay on this page
       </p>
 
       {/* BOTTOM NATIVE BANNER */}

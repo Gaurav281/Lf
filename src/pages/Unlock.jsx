@@ -31,6 +31,7 @@ export default function Unlock() {
   const rafVerifyRef = useRef(null);
   const verifyLastRef = useRef(null);
   const verifyElapsedRef = useRef(0);
+  const verifyDoneRef = useRef(false);
 
   /* ───── INIT ───── */
   useEffect(() => {
@@ -60,14 +61,21 @@ export default function Unlock() {
     init();
   }, [slug, sessionId]);
 
-  /* ───── VERIFY TIMER (RAF) ───── */
+  /* ───── VERIFY TIMER (RAF – SAFE) ───── */
   const startVerify = () => {
-    setVerifyStarted(true);
-    setVerifyTime(VERIFY_TIME);
+    cancelAnimationFrame(rafVerifyRef.current);
+
     verifyElapsedRef.current = 0;
     verifyLastRef.current = null;
+    verifyDoneRef.current = false;
+
+    setVerifyStarted(true);
+    setVerifyDone(false);
+    setVerifyTime(VERIFY_TIME);
 
     const tick = (now) => {
+      if (verifyDoneRef.current) return;
+
       if (document.visibilityState !== "visible") {
         verifyLastRef.current = now;
         rafVerifyRef.current = requestAnimationFrame(tick);
@@ -85,11 +93,12 @@ export default function Unlock() {
       verifyElapsedRef.current += delta;
 
       const elapsed = Math.min(verifyElapsedRef.current, VERIFY_TIME);
-      const left = Math.max(0, VERIFY_TIME - elapsed);
+      const remaining = Math.max(0, VERIFY_TIME - elapsed);
 
-      setVerifyTime(Math.ceil(left));
+      setVerifyTime(Math.ceil(remaining));
 
       if (elapsed >= VERIFY_TIME) {
+        verifyDoneRef.current = true;
         setVerifyStarted(false);
         setVerifyDone(true);
         return;
@@ -109,7 +118,7 @@ export default function Unlock() {
       const docHeight = document.documentElement.scrollHeight;
       const winHeight = window.innerHeight;
 
-      // Short blog → auto allow
+      // Short content → auto allow
       if (docHeight <= winHeight + 10) {
         setCanContinue(true);
         return;
@@ -145,6 +154,8 @@ export default function Unlock() {
 
   /* ───── NEXT STEP ───── */
   const nextStep = async () => {
+    cancelAnimationFrame(rafVerifyRef.current);
+
     const res = await fetch(`${API}/unlock/next`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -156,13 +167,17 @@ export default function Unlock() {
     setProgress(data.progress);
     setStep((s) => s + 1);
 
-    // reset step UI
+    // Reset state
     setShowGate(true);
     setVerifyStarted(false);
     setVerifyDone(false);
     setVerifyTime(VERIFY_TIME);
     setCanContinue(false);
     setRewardedShown(false);
+
+    verifyElapsedRef.current = 0;
+    verifyLastRef.current = null;
+    verifyDoneRef.current = false;
 
     const rewarded = document.getElementById("rewarded-ad-container");
     if (rewarded) rewarded.innerHTML = "";
@@ -219,7 +234,7 @@ export default function Unlock() {
       )}
 
       {/* VERIFY */}
-      {!verifyDone && !verifyStarted && (
+      {!verifyDone && !verifyStarted && !showGate && (
         <div className="min-h-screen flex items-center justify-center">
           <AdButton
             onClick={startVerify}
@@ -239,39 +254,41 @@ export default function Unlock() {
       )}
 
       {/* BLOG */}
-      <div className="max-w-3xl mx-auto pt-24">
-        <h1 className="text-3xl font-bold mb-4">
-          {product.title}
-        </h1>
+      {verifyDone && (
+        <div className="max-w-3xl mx-auto pt-24">
+          <h1 className="text-3xl font-bold mb-4">
+            {product.title}
+          </h1>
 
-        <p className="text-gray-400 mb-8">
-          {product.description}
-        </p>
-
-        <div
-          className="prose prose-invert max-w-none"
-          dangerouslySetInnerHTML={{ __html: product.blog }}
-        />
-
-        <div id="rewarded-ad-container" className="my-12" />
-
-        {verifyDone && !canContinue && (
-          <p className="text-center text-gray-400 mt-12">
-            Scroll to read full content to continue
+          <p className="text-gray-400 mb-8">
+            {product.description}
           </p>
-        )}
 
-        {verifyDone && canContinue && (
-          <div className="flex justify-center mt-16">
-            <AdButton
-              onClick={nextStep}
-              className="px-10 py-4 rounded-xl bg-blue-600 font-bold text-lg"
-            >
-              Continue to Next Step
-            </AdButton>
-          </div>
-        )}
-      </div>
+          <div
+            className="prose prose-invert max-w-none"
+            dangerouslySetInnerHTML={{ __html: product.blog }}
+          />
+
+          <div id="rewarded-ad-container" className="my-12" />
+
+          {!canContinue && (
+            <p className="text-center text-gray-400 mt-12">
+              Scroll to read full content to continue
+            </p>
+          )}
+
+          {canContinue && (
+            <div className="flex justify-center mt-16">
+              <AdButton
+                onClick={nextStep}
+                className="px-10 py-4 rounded-xl bg-blue-600 font-bold text-lg"
+              >
+                Continue to Next Step
+              </AdButton>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
